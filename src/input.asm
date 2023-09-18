@@ -1,6 +1,4 @@
 include "defines.inc"
-include "input.inc"
-
 
 ;******************************************************************************
 ;* wInput
@@ -14,8 +12,6 @@ wInput::
 	.pressed:: db
 	; Keys that became unpressed in the most recent update.
 	.released:: db
-	; Input configuration and status flags
-	.flags:: db
 	; History of each key's state for the last 8 frames.
 	; Each byte is one key/dir -- in the same order as PADB_*
 	.hist::
@@ -37,6 +33,10 @@ wInput::
 	.held_left:: db
 	.held_up:: db
 	.held_down:: db
+
+
+wInput_raw_btn:: ds Input_RawBufferLen
+wInput_raw_dir:: ds Input_RawBufferLen
 
 
 ;******************************************************************************
@@ -69,6 +69,19 @@ input_update::
 	ret z
 
 	call input_read
+
+	; update pressed / released buttons
+	ld b, a ; B = new state
+	ld a, [wInput.state] ; A = previous state
+	xor b
+	ld c, a ; C = keys that changed
+	and b ; A = keys that changed to pressed
+	ld [wInput.pressed], a
+	ld a, b ; A = new state
+	ld [wInput.state], a
+	cpl
+	and c
+	ld [wInput.released], a
 
 	; update hist
 	ld a, [wInput.state]
@@ -109,9 +122,44 @@ input_update::
 	dec c
 	jr nz, .held_loop
 
-
 	ret
 
 
-input_read::
-	DefInputRead "wInput.state", "wInput.pressed", "wInput.released"
+; Read P1, filling input raw sample buffers
+; @ret A: latest combined input state
+input_read:
+	di
+
+	; BUTTONS
+	ld hl, wInput_raw_btn
+	ld a, P1F_GET_BTN
+	ldh [rP1], a
+
+rept Input_RawBufferLen
+	ldh a, [rP1]
+	ld [hl+], a
+endr
+
+	; DPAD
+	ld hl, wInput_raw_dir
+	ld a, P1F_GET_DPAD
+	ldh [rP1], a
+
+rept Input_RawBufferLen
+	ldh a, [rP1]
+	ld [hl+], a
+endr
+
+	ld a, P1F_GET_NONE
+	ldh [rP1], a
+
+	; combine last samples as current state
+	ld a, [wInput_raw_btn + Input_RawBufferLen - 1]
+	or $F0
+	ld b, a
+	ld a, [wInput_raw_dir + Input_RawBufferLen - 1]
+	or $F0
+	swap a
+	xor b
+
+	reti

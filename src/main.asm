@@ -89,6 +89,8 @@ MainLoop:
 	call input_update
 	call Mode_main_iter
 
+
+
 	; Skip first HALT -- if already in VBLANK, don't want to wait for another one?
 	jr .vblank_wait_entry
 .vblank_wait
@@ -105,17 +107,6 @@ MainLoop:
 	jr MainLoop
 
 
-; @param A: mode ID
-Main_mode_change::
-	di
-	ld sp, $FFFE
-	call audio_off
-	call oam_clear
-	call Mode_init
-	ei
-	jp MainLoop
-
-
 ; Disable the LCD (waits for vblank)
 lcd_off::
 :
@@ -130,8 +121,10 @@ lcd_off::
 ; Enable the LCD
 lcd_on::
 	; Turn the LCD on, enable BG, enable OBJ
-	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON; | LCDCF_WINON | LCDCF_WIN9C00
+	ld a, LCDCF_ON | LCDCF_BGON | LCDCF_OBJON | LCDCF_WINON | LCDCF_WIN9C00
 	ldh [rLCDC], a
+	ld a, 144
+	ldh [rWY], a
 	ret
 
 
@@ -175,11 +168,11 @@ wVBlankF:: db
 section "Mode", rom0
 
 ; Jump to the `init` routine of the current mode
-Mode_init::
+Mode_init:
 	jp InputTool_init
 
 ; Jump to the `main_iter` routine of the current mode
-Mode_main_iter::
+Mode_main_iter:
 	jp InputTool_main_iter
 
 

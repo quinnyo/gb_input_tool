@@ -9,6 +9,9 @@ include "hardware.inc"
 include "res/onebit-mono.inc"
 
 
+def Input_RawBufferLen equ 20
+
+
 ; Wait until safe to access VRAM (Mode 0-1)
 ; @mut A
 macro WaitVRAM

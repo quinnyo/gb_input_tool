@@ -5,6 +5,7 @@ section "InputTool", rom0
 
 def vMarker equ $8000
 def vKeys equ $8800
+def vNibble equ $8A00
 
 
 def MARKER_X_OFS equ OAM_X_OFS - 4
@@ -70,6 +71,13 @@ def tLabelA rb 1
 
 keys_2bpp:
 	incbin "res/keys.2bpp"
+.end
+
+
+def tNibble rb 16
+
+nibble_2bpp:
+	incbin "res/nibble.2bpp"
 .end
 
 
@@ -226,16 +234,16 @@ endm
 def CPAL_SIZE equ 8
 
 bcpal0:
-	ColorW $1E, $17, $0A
+	ColorW $1E, $19, $14
 	ColorW $11, $17, $19
 	ColorW $0A, $0B, $0C
 	ColorW $06, $07, $08
 
 ocpal0:
-	ColorW 25, 6, 5
-	ColorW 27, 10, 9
-	ColorW 29, 14, 12
 	ColorW 31, 20, 19
+	ColorW 29, 18, 12
+	ColorW 18, 15, 9
+	ColorW 12, 9, 5
 
 
 InputTool_init::
@@ -247,6 +255,11 @@ InputTool_init::
 	ld hl, vKeys
 	ld de, keys_2bpp
 	ld bc, keys_2bpp.end - keys_2bpp
+	call mem_copy
+
+	ld hl, vNibble
+	ld de, nibble_2bpp
+	ld bc, nibble_2bpp.end - nibble_2bpp
 	call mem_copy
 
 	ld a, BCPSF_AUTOINC
@@ -317,7 +330,7 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	; B
@@ -329,7 +342,7 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	; Sel
@@ -341,7 +354,7 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	; Sta
@@ -353,7 +366,7 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	; R
@@ -365,7 +378,7 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	; L
@@ -377,7 +390,7 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	; U
@@ -389,7 +402,7 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	; D
@@ -401,12 +414,49 @@ InputTool_main_iter::
 	inc de
 	add tMarker00
 	ld [hl+], a
-	xor a
+	ld a, OAMF_PAL1
 	ld [hl+], a
 
 	call oam_next_store
 
+	call InputTool_vbl
+
+
 	ret
+
+
+InputTool_vbl::
+	di
+:
+	ldh a, [rLY]
+	cp SCRN_Y
+	jr c, :-
+
+	ld hl, $9C00
+for i, Input_RawBufferLen
+	ld a, [wInput_raw_btn + i]
+	or $F0
+	cpl
+	add tNibble
+	ld [hl+], a
+endr
+
+	ld hl, $9C00 + $20
+for i, Input_RawBufferLen
+	ld a, [wInput_raw_dir + i]
+	or $F0
+	cpl
+	add tNibble
+	ld [hl+], a
+endr
+
+	ld a, SCRN_Y - 16
+	ldh [rWY], a
+	ld a, 7
+	ldh [rWX], a
+
+	reti
+
 
 section "wInputTool", wram0
 
