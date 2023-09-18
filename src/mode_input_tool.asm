@@ -217,6 +217,8 @@ cmap_eval::
 	jr :-
 
 
+; ColorW R, G, B
+; Define a color, stored in a 2 byte word, encoded as RGB555 for CGB.
 macro ColorW
 	dw (($1F & (\3)) << 10) | (($1F & (\2)) << 5) | ($1F & (\1))
 endm

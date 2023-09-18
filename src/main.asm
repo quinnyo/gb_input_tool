@@ -61,6 +61,12 @@ Reset::
 	call input_init
 	call gfx_load_default_font
 
+	ld a, %11100100
+	ldh [rBGP], a
+	ldh [rOBP0], a
+	ld a, %00011011
+	ldh [rOBP1], a
+
 	call Mode_init
 
 	call lcd_on
