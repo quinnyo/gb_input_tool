@@ -232,6 +232,7 @@ macro ColorW
 endm
 
 def CPAL_SIZE equ 8
+def BCPAL_COUNT equ 2
 
 bcpal0:
 	ColorW $1E, $19, $14
@@ -239,11 +240,17 @@ bcpal0:
 	ColorW $0A, $0B, $0C
 	ColorW $06, $07, $08
 
+bcpal1:
+	ColorW 4, 4, 5
+	ColorW 21, 20, 18
+	ColorW 27, 28, 26
+	ColorW 12, 10, 11
+
 ocpal0:
-	ColorW 31, 20, 19
-	ColorW 29, 18, 12
-	ColorW 18, 15, 9
-	ColorW 12, 9, 5
+	ColorW 31, 31, 31
+	ColorW 31, 12, 24
+	ColorW 1, 4, 2
+	ColorW 12, 22, 27
 
 
 InputTool_init::
@@ -264,7 +271,7 @@ InputTool_init::
 
 	ld a, BCPSF_AUTOINC
 	ldh [rBCPS], a
-	ld c, CPAL_SIZE
+	ld c, CPAL_SIZE * BCPAL_COUNT
 	ld hl, bcpal0
 :
 	ld a, [hl+]
@@ -287,6 +294,24 @@ InputTool_init::
 	ld bc, 32 * 32
 	call mem_fill
 
+	; GB type
+	ld e, "D"
+	ld a, [wBoot_A]
+	cp BOOTUP_A_DMG
+	jr z, :+
+	ld e, "M"
+	cp BOOTUP_A_MGB
+	jr z, :+
+	ld e, "C"
+	cp BOOTUP_A_CGB
+	jr z, :+
+	ld e, "?"
+:
+	ld hl, $9800
+	ld a, "Q"
+	ld [hl+], a
+	ld [hl], e
+
 	ld de, map_keys
 	call cmap_eval
 
@@ -294,6 +319,16 @@ InputTool_init::
 	ld a, 9
 	ld c, 8
 	call mem_fill_byte
+
+	; window palette
+	ld a, 1
+	ldh [rVBK], a
+	ld hl, $9C00
+	ld d, 1
+	ld bc, 32 * 32
+	call mem_fill
+	xor a
+	ldh [rVBK], a
 
 	ret
 
@@ -346,9 +381,9 @@ InputTool_main_iter::
 	ld [hl+], a
 
 	; Sel
-	ld a, mSel_y * 8 + MARKER_Y_OFS
+	ld a, mSel_y * 8 + MARKER_Y_OFS + 4
 	ld [hl+], a
-	ld a, mSel_x * 8 + MARKER_X_OFS
+	ld a, mSel_x * 8 + MARKER_X_OFS + 1
 	ld [hl+], a
 	ld a, [de]
 	inc de
@@ -358,9 +393,9 @@ InputTool_main_iter::
 	ld [hl+], a
 
 	; Sta
-	ld a, mSta_y * 8 + MARKER_Y_OFS
+	ld a, mSta_y * 8 + MARKER_Y_OFS + 4
 	ld [hl+], a
-	ld a, mSta_x * 8 + MARKER_X_OFS
+	ld a, mSta_x * 8 + MARKER_X_OFS + 1
 	ld [hl+], a
 	ld a, [de]
 	inc de
@@ -372,7 +407,7 @@ InputTool_main_iter::
 	; R
 	ld a, mDirCentreY * 8 + MARKER_Y_OFS
 	ld [hl+], a
-	ld a, (mDirCentreX + 3) * 8 + MARKER_X_OFS
+	ld a, (mDirCentreX + 3) * 8 + MARKER_X_OFS - 1
 	ld [hl+], a
 	ld a, [de]
 	inc de
@@ -384,7 +419,7 @@ InputTool_main_iter::
 	; L
 	ld a, mDirCentreY * 8 + MARKER_Y_OFS
 	ld [hl+], a
-	ld a, (mDirCentreX - 3) * 8 + MARKER_X_OFS
+	ld a, (mDirCentreX - 3) * 8 + MARKER_X_OFS + 2
 	ld [hl+], a
 	ld a, [de]
 	inc de
@@ -394,7 +429,7 @@ InputTool_main_iter::
 	ld [hl+], a
 
 	; U
-	ld a, (mDirCentreY - 3) * 8 + MARKER_Y_OFS
+	ld a, (mDirCentreY - 3) * 8 + MARKER_Y_OFS + 2
 	ld [hl+], a
 	ld a, mDirCentreX * 8 + MARKER_X_OFS
 	ld [hl+], a
@@ -406,7 +441,7 @@ InputTool_main_iter::
 	ld [hl+], a
 
 	; D
-	ld a, (mDirCentreY + 3) * 8 + MARKER_Y_OFS
+	ld a, (mDirCentreY + 3) * 8 + MARKER_Y_OFS - 1
 	ld [hl+], a
 	ld a, mDirCentreX * 8 + MARKER_X_OFS
 	ld [hl+], a
@@ -419,43 +454,47 @@ InputTool_main_iter::
 
 	call oam_next_store
 
-	call InputTool_vbl
-
-
-	ret
-
-
-InputTool_vbl::
-	di
 :
 	ldh a, [rLY]
 	cp SCRN_Y
 	jr c, :-
 
 	ld hl, $9C00
-for i, Input_RawBufferLen
-	ld a, [wInput_raw_btn + i]
-	or $F0
-	cpl
-	add tNibble
+	ld a, "P"
 	ld [hl+], a
-endr
-
-	ld hl, $9C00 + $20
-for i, Input_RawBufferLen
-	ld a, [wInput_raw_dir + i]
-	or $F0
-	cpl
-	add tNibble
+	ld a, "x"
 	ld [hl+], a
-endr
+	ld a, "R"
+	ld [hl+], a
+	ld hl, $9C20
+	ld a, [wInput.pressed]
+	call .draw_nibble
+	ld a, [wInput.state]
+	call .draw_nibble
+	ld a, [wInput.released]
+	call .draw_nibble
+	ld hl, $9C40
+	ld a, [wInput.pressed]
+	call .draw_nibble_hi
+	ld a, [wInput.state]
+	call .draw_nibble_hi
+	ld a, [wInput.released]
+	call .draw_nibble_hi
 
-	ld a, SCRN_Y - 16
+	ld a, SCRN_Y - 24 - 4
 	ldh [rWY], a
-	ld a, 7
+	ld a, SCRN_X - 24 + WX_OFS - 4
 	ldh [rWX], a
 
-	reti
+	ret
+
+.draw_nibble_hi
+	swap a
+.draw_nibble
+	and $0F
+	add tNibble
+	ld [hl+], a
+	ret
 
 
 section "wInputTool", wram0

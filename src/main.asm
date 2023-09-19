@@ -5,17 +5,16 @@ section "IRQ_VBlank", rom0[$0040]
 	jp ISR_VBlank
 
 ; section "IRQ_LCDSTAT", rom0[$0048]
-; 	jp ISR_audio_update
+; 	jp ISR_LCDSTAT
 
 ; section "IRQ_Timer", rom0[$0050]
-; 	jp ISR_audio_update
+; 	jp ISR_Timer
 
 ; section "IRQ_Serial", rom0[$0058]
-; 	reti
+; 	jp ISR_Serial
 
-; section "IRQ_P1", rom0[$0060]
-; 	reti
-
+; section "IRQ_P1x", rom0[$0060]
+; 	jp ISR_P1x
 
 section "Header", rom0[$0100]
 	nop
@@ -50,8 +49,6 @@ Reset::
 
 	xor a
 	ld [wVBlankF], a
-	ld a, IEF_VBLANK
-	ldh [rIE], a
 
 	ld sp, $FFFE
 
@@ -77,26 +74,25 @@ Reset::
 	ldh a, [rIE]
 	or IEF_VBLANK
 	ldh [rIE], a
-
 	ei
-	xor a
-	ld [wVBlankF], a
 	jr MainLoop.vblank_wait
 
 MainLoop:
+	di
+
+	call input_read
+	call input_update
+
 	call oam_clear
 
-	call input_update
+	ei
+
 	call Mode_main_iter
 
 
-
-	; Skip first HALT -- if already in VBLANK, don't want to wait for another one?
-	jr .vblank_wait_entry
 .vblank_wait
 	halt
 	nop
-.vblank_wait_entry
 	; wait for vblank interrupt
 	ld a, [wVBlankF]
 	and a
